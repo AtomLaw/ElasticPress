@@ -105,24 +105,37 @@ class EP_Config {
 	}
 
 	/**
-	 * Generates the index name for the current site
+	 * Generates the index name for the current site. If $force_refresh is true, a new
+	 * index_name with the current timestamp will be returned. Otherwise this function simply
+	 * fetches the index_name saved in the options table and returns it.
 	 *
 	 * @param int $blog_id (optional) Blog ID. Defaults to current blog.
+	 * @param bool $force_refresh (optional) Generate New Index Name. Defaults to false
 	 * @since 0.9
 	 * @return string
 	 */
-	public function get_index_name( $blog_id = null ) {
-		if ( ! $blog_id ) {
-			$blog_id = get_current_blog_id();
-		}
+	public function get_index_name( $blog_id = null, $force_refresh = false ) {
+		if ( ! $force_refresh ) {
+			$index_name = get_site_option( 'ep_site_index_name' );
 
-		$site_url = get_site_url( $blog_id );
-
-		if ( ! empty( $site_url ) ) {
-			$index_name = preg_replace( '#https?://(www\.)?#i', '', $site_url );
-			$index_name = preg_replace( '#[^\w]#', '', $index_name ) . '-' . $blog_id;
+			if ( $index_name ) {
+				return $index_name;
+			}
 		} else {
-			$index_name = false;
+			if ( ! $blog_id ) {
+				$blog_id = get_current_blog_id();
+			}
+
+			$site_url = get_site_url( $blog_id );
+			$date = new DateTime();
+			$timestamp = $date->getTimestamp();
+
+			if ( ! empty( $site_url ) ) {
+				$index_name = preg_replace( '#https?://(www\.)?#i', '', $site_url );
+				$index_name = preg_replace( '#[^\w]#', '', $index_name ) . '-' . $timestamp;
+			} else {
+				$index_name = false;
+			}
 		}
 
 		return apply_filters( 'ep_index_name', $index_name, $blog_id );
@@ -212,8 +225,8 @@ function ep_is_indexing_wpcli() {
 	return EP_Config::factory()->is_indexing_wpcli();
 }
 
-function ep_get_index_name( $blog_id = null ) {
-	return EP_Config::factory()->get_index_name( $blog_id );
+function ep_get_index_name( $blog_id = null, $force_refresh = false ) {
+	return EP_Config::factory()->get_index_name( $blog_id, $force_refresh );
 }
 
 function ep_get_indexable_post_types() {
