@@ -364,7 +364,7 @@ class EP_API {
 	 * @since 0.9.0
 	 * @return array|bool
 	 */
-	public function create_network_alias( $indexes ) {
+	public function create_network_alias( $indexes, $new_indexes ) {
 
 		$path = '_aliases';
 
@@ -374,12 +374,16 @@ class EP_API {
 
 		$indexes = apply_filters( 'ep_create_network_alias_indexes', $indexes );
 
-		foreach ( $indexes as $index ) {
+		foreach ( $indexes as $key => $index ) {
 			$args['actions'][] = array(
 				'add' => array(
 					'index' => $index,
 					'alias' => ep_get_network_alias(),
 				),
+				'remove' => array(
+					'index' => $new_indexes[$key],
+					'alias' => ep_get_network_alias()
+				)
 			);
 		}
 
@@ -394,6 +398,10 @@ class EP_API {
 			$response_body = wp_remote_retrieve_body( $request );
 
 			return json_decode( $response_body );
+		}
+
+		foreach ( $indexes as $index ) {
+			$this->delete_index( $index );
 		}
 
 		return false;
@@ -1681,9 +1689,9 @@ class EP_API {
 	 * @param $body
 	 * @return array|object|WP_Error
 	 */
-	public function bulk_index_posts( $body ) {
+	public function bulk_index_posts( $body, $index ) {
 		// create the url with index name and type so that we don't have to repeat it over and over in the request (thereby reducing the request size)
-		$path = trailingslashit( ep_get_index_name() ) . 'post/_bulk';
+		$path = trailingslashit( $index ) . 'post/_bulk';
 
 		$request_args = array(
 			'method'  => 'POST',
@@ -2271,8 +2279,8 @@ function ep_format_args( $args ) {
 	return EP_API::factory()->format_args( $args );
 }
 
-function ep_create_network_alias( $indexes ) {
-	return EP_API::factory()->create_network_alias( $indexes );
+function ep_create_network_alias( $indexes, $new_indexes ) {
+	return EP_API::factory()->create_network_alias( $indexes, $new_indexes );
 }
 
 function ep_delete_network_alias() {
@@ -2291,8 +2299,8 @@ function ep_get_sites( $limit = 0 ) {
 	return EP_API::factory()->get_sites( $limit );
 }
 
-function ep_bulk_index_posts( $body ) {
-	return EP_API::factory()->bulk_index_posts( $body );
+function ep_bulk_index_posts( $body, $index ) {
+	return EP_API::factory()->bulk_index_posts( $body, $index );
 }
 
 function ep_elasticpress_enabled( $query ) {
