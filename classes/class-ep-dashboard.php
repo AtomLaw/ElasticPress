@@ -195,6 +195,7 @@ class EP_Dashboard {
 			$index_meta = array(
 				'offset' => 0,
 				'start' => true,
+				'index_name'    => ep_get_index_name( null, $force_refresh = true )
 			);
 
 			if ( defined( 'EP_IS_NETWORK' ) && EP_IS_NETWORK ) {
@@ -205,14 +206,14 @@ class EP_Dashboard {
 				foreach ( $sites as $site ) {
 					$index_meta['site_stack'][] = array(
 						'url' => untrailingslashit( $site['domain'] . $site['path'] ),
-						'id' => (int) $site['blog_id'],
+						'id' => (int) $site['blog_id']
 					);
 				}
 
 				$index_meta['current_site'] = array_shift( $index_meta['site_stack'] );
 			} else {
 				if ( ! apply_filters( 'ep_skip_index_reset', false, $index_meta ) ) {
-					ep_delete_index();
+//					ep_delete_index();
 
 					ep_put_mapping();
 				}
@@ -227,6 +228,8 @@ class EP_Dashboard {
 			$index_meta['start'] = true;
 			$index_meta['offset'] = 0;
 			$index_meta['current_site'] = array_shift( $index_meta['site_stack'] );
+			$index_meta['index_name'] = ep_get_index_name( null, $force_refresh = true );
+			$index_meta['index_names'][$index_meta['current_site']['id']] = $index_meta['index_name'];
 		} else {
 			$index_meta['start'] = false;
 		}
@@ -238,7 +241,7 @@ class EP_Dashboard {
 
 			if ( ! empty( $index_meta['start'] ) ) {
 				if ( ! apply_filters( 'ep_skip_index_reset', false, $index_meta ) ) {
-					ep_delete_index();
+//					ep_delete_index();
 
 					ep_put_mapping();
 				}
@@ -301,7 +304,7 @@ class EP_Dashboard {
 					// make sure to add a new line at the end or the request will fail
 					$body = rtrim( implode( "\n", $flatten ) ) . "\n";
 
-					ep_bulk_index_posts( $body );
+					ep_bulk_index_posts( $body, $index_meta['index_name'] );
 				}
 
 				$index_meta['offset'] = absint( $index_meta['offset'] + $posts_per_page );
@@ -324,21 +327,25 @@ class EP_Dashboard {
 
 						$sites   = ep_get_sites();
 						$indexes = array();
+						$new_indexes = array();
 
 						foreach ( $sites as $site ) {
 							switch_to_blog( $site['blog_id'] );
 							$indexes[] = ep_get_index_name();
+							$new_indexes[] = $index_meta['index_names'][$site['blog_id']];
+							update_site_option( 'ep_site_index_name', $index_meta['index_names'][$site['blog_id']] );
 							restore_current_blog();
 						}
-						
-						ep_create_network_alias( $indexes );
+						ep_create_network_alias( $indexes, $new_indexes[] );
 					} else {
 						$index_meta['offset'] = (int) $query->found_posts;
 					}
 
 				} else {
 					$index_meta['offset'] = (int) $query->found_posts;
-
+					$old_index_name = ep_get_index_name();
+					update_option( 'ep_site_index_name', $index_meta[ 'index_name' ] );
+					ep_delete_index( $old_index_name );
 					delete_option( 'ep_index_meta' );
 				}
 			}
